@@ -22,7 +22,7 @@ def list_filenames_from_directory(directory):
                 paths[filename].append(dirpath)
                 sizes[filename].append(file_size)
 
-        number_of_files += 1
+            number_of_files += 1
 
     print("Total number of files from directory {} is {}".format(directory, number_of_files))
 
@@ -42,20 +42,19 @@ def main(directory1, directory2):
     directory_to_missing_files = {}
 
     for file in missing_files:
-        print("File missing: {}".format(file))
-        print("It can be found in:")
+        # print("File missing: {}".format(file))
+        # print("It can be found in:")
         for path in directory_information_1['paths'][file]:
-            print("  '{}'".format(path))
+            # print("  '{}'".format(path))
 
             if path in directory_to_missing_files:
                 directory_to_missing_files[path].append(file)
             else:
                 directory_to_missing_files[path] = [file]
 
-        print()
+        # print()
 
     print("Total missing files: {}".format(len(missing_files)))
-    print("===================================================")
 
     for directory in directory_to_missing_files.keys():
         print("The files below can no longer be found. They were found in: '{}':".format(directory))
@@ -73,8 +72,21 @@ def main(directory1, directory2):
                     found = True
 
             if not found:
-                print("File: {} has different size in both directories".format(file))
+                print("File: {} has different size in both directories:".format(file))
+                show_file_sizes(directory2, directory_information_2['sizes'][file])
+                show_file_sizes(directory1, directory_information_1['sizes'][file])
+                print()
 
+def show_file_sizes(directory, file_sizes):
+    if len(file_sizes) != 1:
+        "The file sizes in the directory"
+
+    for (i, val) in enumerate(file_sizes):
+        file_sizes[i] = "{} bytes ({:.2f} MB)".format(val, val/1024/1024)
+
+    file_sizes_text = ", ".join(file_sizes)
+
+    print("  {}\tin {}".format(file_sizes_text, directory))
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Lists file names with their path in dir1 not in dir2")
