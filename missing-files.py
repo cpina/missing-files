@@ -2,11 +2,13 @@
 
 import os
 import argparse
+import datetime
 
 def list_filenames_from_directory(directory):
     files = set()
     paths = {}
     sizes = {}
+    dates = {}
 
     number_of_files = 0
     for (dirpath, dirnames, filenames) in os.walk(directory):
@@ -15,18 +17,22 @@ def list_filenames_from_directory(directory):
 
             file_path = os.path.join(dirpath, filename)
             file_size = os.stat(file_path).st_size
+            date = datetime.datetime.utcfromtimestamp(os.stat(file_path).st_mtime)
+
             if filename not in paths:
                 paths[filename] = [dirpath]
                 sizes[filename] = [file_size]
+                dates[filename] = [date]
             else:
                 paths[filename].append(dirpath)
                 sizes[filename].append(file_size)
+                dates[filename].append(date)
 
             number_of_files += 1
 
     print("Total number of files from directory {} is {}".format(directory, number_of_files))
 
-    return {'fileset': files, 'paths': paths, 'sizes': sizes}
+    return {'fileset': files, 'paths': paths, 'sizes': sizes, 'dates': dates}
 
 def main(directory1, directory2):
     directory_information_1 = list_filenames_from_directory(directory1)
@@ -72,12 +78,12 @@ def main(directory1, directory2):
                     found = True
 
             if not found:
-                print("File: {} has different size in both directories:".format(file))
-                show_file_sizes(directory2, directory_information_2['sizes'][file])
-                show_file_sizes(directory1, directory_information_1['sizes'][file])
+                print("File: {} has different sizes in both directories:".format(file))
+                show_file_sizes(directory2, directory_information_2['sizes'][file], directory_information_2['dates'][file])
+                show_file_sizes(directory1, directory_information_1['sizes'][file], directory_information_1['dates'][file])
                 print()
 
-def show_file_sizes(directory, file_sizes):
+def show_file_sizes(directory, file_sizes, file_dates):
     if len(file_sizes) != 1:
         "The file sizes in the directory"
 
@@ -86,7 +92,12 @@ def show_file_sizes(directory, file_sizes):
 
     file_sizes_text = ", ".join(file_sizes)
 
-    print("  {}\tin {}".format(file_sizes_text, directory))
+    for (i, val) in enumerate(file_dates):
+        file_dates[i] = "{}".format(val.strftime("%Y-%m-%d %H:%M:%S"))
+
+    file_dates_text = ", ".join(file_dates)
+
+    print("  {}\tin {}\t{}".format(file_sizes_text, file_dates_text, directory))
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Lists file names with their path in dir1 not in dir2")
