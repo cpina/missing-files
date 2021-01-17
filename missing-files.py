@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 
-import os
 import argparse
 import datetime
+import os
+import sys
 
 
 def list_filenames_from_directory(directory):
@@ -12,20 +13,20 @@ def list_filenames_from_directory(directory):
     dates = {}
 
     number_of_files = 0
-    for (dirpath, dirnames, filenames) in os.walk(directory):
+    for (root, dirnames, filenames) in os.walk(directory):
         for filename in filenames:
             files.add(filename)
 
-            file_path = os.path.join(dirpath, filename)
+            file_path = os.path.join(root, filename)
             file_size = os.stat(file_path).st_size
             date = datetime.datetime.utcfromtimestamp(os.stat(file_path).st_mtime)
 
             if filename not in paths:
-                paths[filename] = [dirpath]
+                paths[filename] = [root]
                 sizes[filename] = [file_size]
                 dates[filename] = [date]
             else:
-                paths[filename].append(dirpath)
+                paths[filename].append(root)
                 sizes[filename].append(file_size)
                 dates[filename].append(date)
 
@@ -36,82 +37,65 @@ def list_filenames_from_directory(directory):
     return {'fileset': files, 'paths': paths, 'sizes': sizes, 'dates': dates}
 
 
-def main(directory1, directory2):
-    directory_information_1 = list_filenames_from_directory(directory1)
-    directory_information_2 = list_filenames_from_directory(directory2)
+def list_filenames_from_directories(directories):
+    information = None
 
-    print('Files in {} but not in {}:'.format(directory1, directory2))
+    for directory in directories:
+        directory_information = list_filenames_from_directory(directory)
 
-    missing_files = directory_information_1['fileset'] - directory_information_2['fileset']
+        if information:
+            keys = information.keys()
+            for key in keys:
+                if type(information[key]) == set:
+                    information[key] = information[key].union(directory_information[key])
+                elif type(information[key]) == dict:
+                    information[key].update(directory_information[key])
+        else:
+            information = directory_information
+
+    return information
+
+
+def abort_if_directories_does_not_exist(directories):
+    for directory in directories:
+        if not os.path.isdir(directory):
+            print('Directory: ', directory, 'does not exist, exiting')
+            sys.exit(1)
+
+
+def main(source_directory, destination_directories):
+    abort_if_directories_does_not_exist([source_directory] + destination_directories)
+    source_files = list_filenames_from_directory(source_directory)
+    destination_files = list_filenames_from_directories(destination_directories)
+
+    print('Files in {} but not in {}:'.format(source_directory, destination_directories))
+
+    missing_files = source_files['fileset'] - destination_files['fileset']
 
     missing_files = list(missing_files)
     missing_files.sort()
 
-    directory_to_missing_files = {}
+    count = 0
+    print('MISSING FILES')
 
     for file in missing_files:
-        # print('File missing: {}'.format(file))
-        # print('It can be found in:')
-        for path in directory_information_1['paths'][file]:
-            # print('  '{}''.format(path))
+        full_paths = []
+        for path in source_files["paths"][file]:
+            full_paths.append(os.path.join(path, file))
 
-            if path in directory_to_missing_files:
-                directory_to_missing_files[path].append(file)
-            else:
-                directory_to_missing_files[path] = [file]
-
-    count = 0
-    for directory in directory_to_missing_files.keys():
-        print('The files below can no longer be found. They were found in: "{}":'.format(directory))
-        for file in directory_to_missing_files[directory]:
-            print('   {}'.format(file))
-            count += 1
-
-        print()
+        full_paths = ', '.join(full_paths)
+        print(full_paths)
+        count += 1
 
     print('Total missing files:', count)
-
-    count = 0
-    print('Files missing based on the size - but exist same file name')
-    for file in directory_information_1['sizes']:
-        found = False
-
-        if file in directory_information_2['sizes']:
-            for size in directory_information_2['sizes'][file]:
-                if size in directory_information_1['sizes'][file]:
-                    found = True
-
-            if not found:
-                print('   {}'.format(file))
-                count += 1
-                # show_file_sizes(directory2, directory_information_2['sizes'][file], directory_information_2['dates'][file])
-                # show_file_sizes(directory1, directory_information_1['sizes'][file], directory_information_1['dates'][file])
-                # print()
-
-    print('Total missing files:', count)
-
-def show_file_sizes(directory, file_sizes, file_dates):
-    if len(file_sizes) != 1:
-        'The file sizes in the directory'
-
-    for (i, val) in enumerate(file_sizes):
-        file_sizes[i] = '{} bytes ({:.2f} MB)'.format(val, val/1024/1024)
-
-    file_sizes_text = ', '.join(file_sizes)
-
-    for (i, val) in enumerate(file_dates):
-        file_dates[i] = '{}'.format(val.strftime('%Y-%m-%d %H:%M:%S'))
-
-    file_dates_text = ', '.join(file_dates)
-
-    print('  {}\tin {}\t{}'.format(file_sizes_text, file_dates_text, directory))
 
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Lists file names with their path in dir1 not in dir2')
-    parser.add_argument('directory1', type=str, help='Directory to get the initial file set (e.g. camera)')
-    parser.add_argument('directory2', type=str, help='Directory with the copied file set (e.g. backup)')
+    parser.add_argument('source', type=str, help='Directory to get the initial file set (e.g. /mnt/camera)')
+    parser.add_argument('destinations', metavar='N', type=str, nargs='+',
+                        help='Directories with the copied file set (/mnt/backup/2020 /mnt/backup/2021)')
 
     args = parser.parse_args()
 
-    main(args.directory1, args.directory2)
+    main(args.source, args.destinations)
