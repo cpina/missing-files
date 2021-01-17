@@ -70,7 +70,17 @@ def main(source_directory, destination_directories):
 
     print('Files in {} but not in {}:'.format(source_directory, destination_directories))
 
-    missing_files = source_files['fileset'] - destination_files['fileset']
+    # To check based only on file names:
+    # missing_files = source_files['fileset'] - destination_files['fileset']
+
+    missing_files = set()
+    # To check based on file name AND file size
+    for file in source_files['fileset']:
+        if file not in destination_files['fileset']:
+            missing_files.add(file)
+        elif file in destination_files['fileset'] and source_files['sizes'][file][0] not in destination_files['sizes'][file]:
+            print('Missing file because of size', file)
+            missing_files.add(file)
 
     missing_files = list(missing_files)
     missing_files.sort()
